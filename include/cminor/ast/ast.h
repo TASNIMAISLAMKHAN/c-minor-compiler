@@ -8,6 +8,8 @@
 #include "cminor/common/source_location.h"
 #include "cminor/lexer/token.h"
 
+struct SemanticSymbol;
+
 typedef enum {
     AST_PROGRAM,
     AST_FUNCTION,
@@ -45,6 +47,8 @@ struct AstNode {
     bool is_definition;
     bool is_void;
 
+    struct SemanticSymbol *symbol;
+
     AstNode *first;
     AstNode *second;
     AstNode *third;
@@ -56,6 +60,7 @@ struct AstNode {
 AstNode *ast_new(AstKind kind, SourceSpan span);
 AstNode *ast_new_named(AstKind kind, SourceSpan span, char *name);
 AstNode *ast_new_integer(SourceSpan span, int32_t value);
+
 AstNode *ast_new_operation(
     AstKind kind,
     SourceSpan span,
@@ -63,6 +68,7 @@ AstNode *ast_new_operation(
     AstNode *left,
     AstNode *right
 );
+
 AstNode *ast_list_append(AstNode *list, AstNode *node);
 
 void ast_dump(const AstNode *node, FILE *output);

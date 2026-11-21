@@ -1,0 +1,32 @@
+# Compiled binaries and object files
+*.o
+*.out
+*.exe
+
+# Generated assembly and LLVM files
+*.s
+*.ll
+*.bc
+
+# Generated parser and lexer files
+lex.yy.c
+y.tab.c
+y.tab.h
+parser.tab.c
+parser.tab.h
+
+# Build directory
+build/
+
+# Debug files
+*.core
+core
+
+# Editor and OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local test executable
+/backend_test
+

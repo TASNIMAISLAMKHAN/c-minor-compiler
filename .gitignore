@@ -1,11 +1,10 @@
-# Compiled binaries and object files
+# Build output
+/build/
+
+# Compiled objects and binaries
 *.o
 *.out
 *.exe
-
-# Generated assembly and LLVM files
-*.s
-*.ll
 *.bc
 
 # Generated parser and lexer files
@@ -15,18 +14,15 @@ y.tab.h
 parser.tab.c
 parser.tab.h
 
-# Build directory
-build/
+# Root-level local test artifacts
+/backend_test
+/backend_test.s
 
 # Debug files
 *.core
 core
 
-# Editor and OS files
+# Editor and operating system files
 .vscode/
 .DS_Store
 Thumbs.db
-
-# Local test executable
-/backend_test
-

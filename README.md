@@ -1,57 +1,189 @@
 # C Minor Compiler
 
-A compiler for the C Minor programming language, developed using C, Flex, and Bison, with a custom intermediate representation (Student IR) and an LLVM-based x86-64 backend.
+A compiler for the C Minor programming language, developed using C, Flex, and Bison. It implements a complete compilation pipeline with a custom Student Intermediate Representation (IR) and an LLVM-based x86-64 backend.
 
-## Project Overview
+## 1. Project Overview
 
-This project aims to implement a complete compiler pipeline, from source-code analysis to native executable generation.
+The compiler translates C Minor source code into native Linux x86-64 assembly and executable programs.
 
-## Compiler Architecture
+### Compilation Pipeline
 
-The planned compilation pipeline is:
+1. Lexical Analysis using Flex.
+2. Syntax Analysis using Bison.
+3. Abstract Syntax Tree (AST) construction.
+4. Semantic analysis, type checking, and symbol table management.
+5. Custom Student IR generation.
+6. LLVM IR generation.
+7. x86-64 assembly generation using LLVM `llc`.
+8. Assembly and linking using GCC and GNU Binutils.
 
-1. **Lexical Analysis** — Tokenization using Flex.
-2. **Syntax Analysis** — Parsing using Bison.
-3. **Abstract Syntax Tree (AST)** — Construction of the syntax tree.
-4. **Semantic Analysis** — Type checking, scope management, and symbol table implementation.
-5. **Student IR** — Development of a custom intermediate representation.
-6. **LLVM IR Generation** — Translation from Student IR to LLVM IR.
-7. **Machine Code Generation** — x86-64 assembly generation using LLVM.
-8. **Assembly and Linking** — Executable generation using GNU Binutils and GCC.
+## 2. Supported Language Features
 
-## Technologies
+C Minor is a subset of C, not a complete ISO C compiler.
 
-- C
+Current supported features:
+
+- Integer and void function return types.
+- Local integer variables and function parameters.
+- Arithmetic operations and comparisons.
+- Logical operators with short-circuit evaluation.
+- Variable declarations and assignments.
+- `if` and `else` statements.
+- `while` and `for` loops.
+- `break` and `continue`.
+- Function declarations and definitions.
+- Direct function calls and recursion.
+- Semantic analysis and symbol table generation.
+- Student IR and LLVM IR generation.
+
+## 3. Technologies
+
+- C (C11)
 - Flex
-- Bison
-- GCC
-- LLVM 23.1.3
+- GNU Bison
+- GCC and GNU Make
+- LLVM (`llc`)
 - GNU Binutils
 - Ubuntu on WSL2
 - Visual Studio Code
 
-## Development Status
+## 4. Requirements
 
-- [x] Development environment setup
-- [x] Backend toolchain verification
-- [ ] Project structure
-- [ ] Lexical analyzer
-- [ ] Syntax analyzer and AST
-- [ ] Semantic analysis and symbol table
-- [ ] Student IR
-- [ ] LLVM IR translation
-- [ ] x86-64 code generation
-- [ ] Compiler driver
-- [ ] Testing and documentation
+Install the required tools on Ubuntu or WSL2:
 
-## Platform
+    sudo apt update
+    sudo apt install build-essential flex bison llvm
+
+Verify the installation:
+
+    gcc --version
+    make --version
+    flex --version
+    bison --version
+    llc --version
 
 Target platform: Linux x86-64 (System V AMD64 ABI).
 
-## Author
+## 5. Build the Compiler
 
-TASNIMAISLAMKHAN
+Clone the repository and enter the project directory:
+
+    git clone <repository-url>
+    cd compiler-construction
+
+Replace `<repository-url>` with the actual repository URL. If you already have the repository, skip the clone command and run the remaining commands from its directory.
+
+Build the compiler:
+
+    make
+
+The compiler executable will be generated at `build/bin/cminor`.
+
+## 6. Run the Compiler
+
+Display help:
+
+    ./build/bin/cminor --help
+
+Display capabilities:
+
+    ./build/bin/cminor --capabilities
+
+Check a source file:
+
+    ./build/bin/cminor --check examples/semantic_valid.cm
+
+Dump tokens:
+
+    ./build/bin/cminor --dump-tokens examples/lexer_smoke.cm
+
+Dump AST:
+
+    ./build/bin/cminor --dump-ast examples/semantic_valid.cm
+
+Dump symbol table:
+
+    ./build/bin/cminor --dump-symbols examples/semantic_valid.cm
+
+Dump Student IR:
+
+    ./build/bin/cminor --dump-ir examples/semantic_valid.cm
+
+Generate LLVM IR:
+
+    ./build/bin/cminor --emit-backend-ir examples/semantic_valid.cm -o build/output.ll
+
+Compile to assembly:
+
+    ./build/bin/cminor examples/semantic_valid.cm -o build/output.s
+
+Assemble and link:
+
+    gcc build/output.s -o build/program
+
+Execute:
+
+    ./build/program
+
+The `semantic_valid.cm` example is expected to return exit status `5`.
+
+## 7. Run Tests
+
+Build and run all automated tests:
+
+    make test
+
+The test suite includes lexer, parser, semantic analysis, Student IR, and LLVM backend tests. The backend test also verifies LLVM object-file generation.
+
+Remove generated build files:
+
+    make clean
+
+## 8. Project Structure
+
+    compiler-construction/
+    ├── Makefile
+    ├── README.md
+    ├── include/cminor/
+    │   ├── ast/
+    │   ├── backend/
+    │   ├── common/
+    │   ├── ir/
+    │   ├── lexer/
+    │   ├── parser/
+    │   └── semantic/
+    ├── src/
+    │   ├── ast/
+    │   ├── backend/
+    │   ├── common/
+    │   ├── ir/
+    │   ├── lexer/
+    │   ├── parser/
+    │   ├── semantic/
+    │   └── main.c
+    ├── tests/
+    ├── examples/
+    ├── docs/
+    └── build/
+
+Generated files and compiled binaries are stored in `build/`.
+
+## 9. Development Status
+
+- [x] Project structure
+- [x] Lexical analyzer
+- [x] Syntax analyzer and AST
+- [x] Semantic analysis and symbol table
+- [x] Student Intermediate Representation
+- [x] LLVM IR translation
+- [x] x86-64 assembly generation
+- [x] Compiler driver and command-line interface
+- [x] Makefile build system
+- [x] Automated tests
+- [x] Project documentation
 
 ---
 
-This project is being developed as part of a Compiler Construction course project.
+Developed as part of a Compiler Construction course project.
+
+**Author:** TASNIMAISLAMKHAN

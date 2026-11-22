@@ -17,6 +17,7 @@ PARSER_HEADER = $(GEN_DIR)/parser.tab.h
 
 COMMON_SOURCES = \
 	src/common/diagnostic.c \
+	src/common/source_limits.c \
 	src/lexer/token.c \
 	src/lexer/lexer_support.c \
 	src/lexer/lexer.c \
@@ -39,7 +40,10 @@ TESTS = \
 
 .PHONY: all clean test directories
 
-all: directories $(BIN_DIR)/cminor
+all: directories $(BIN_DIR)/cminor cminorcc
+
+cminorcc: $(BIN_DIR)/cminor
+	chmod +x cminorcc
 
 directories:
 	mkdir -p $(OBJ_DIR)/src/common
@@ -95,6 +99,7 @@ test: all $(TESTS)
 	@echo "========== BACKEND TEST =========="
 	./$(BIN_DIR)/backend_test examples/semantic_valid.cm $(BUILD_DIR)/make_test.ll
 	llc -filetype=obj $(BUILD_DIR)/make_test.ll -o $(BUILD_DIR)/make_test.o
+	python3 tests/srs_compliance_test.py ./cminorcc
 	@echo "========== ALL TESTS PASSED =========="
 
 clean:

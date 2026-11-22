@@ -26,3 +26,10 @@ core
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local backups
+/backup/
+
+# Python cache
+__pycache__/
+*.py[cod]

@@ -437,6 +437,24 @@ static void analyze_block(
         }
     }
 
+    size_t local_declaration_count = 0;
+
+    for (AstNode *item = block->children;
+         item != NULL;
+         item = item->next) {
+        if (item->kind == AST_VARIABLE_DECLARATION) {
+            local_declaration_count++;
+        }
+    }
+
+    if (local_declaration_count > 64) {
+        semantic_error(
+            ctx,
+            block->span,
+            "A block cannot contain more than 64 local declarations."
+        );
+    }
+
     for (AstNode *item = block->children;
          item != NULL;
          item = item->next) {
@@ -826,6 +844,47 @@ int semantic_analyze(
             "The AST root is not a program node."
         );
         return 0;
+    }
+
+    /* Enforce the maximum number of distinct user functions.
+       A prototype and its definition count as one function. */
+
+    size_t function_count = 0;
+
+    for (AstNode *function = program->children;
+         function != NULL;
+         function = function->next) {
+
+        if (function->kind != AST_FUNCTION) {
+            continue;
+        }
+
+        int already_counted = 0;
+
+        for (AstNode *previous = program->children;
+             previous != function;
+             previous = previous->next) {
+
+            if (previous->kind == AST_FUNCTION &&
+                function->name != NULL &&
+                previous->name != NULL &&
+                strcmp(previous->name, function->name) == 0) {
+                already_counted = 1;
+                break;
+            }
+        }
+
+        if (!already_counted) {
+            function_count++;
+
+            if (function_count == 33) {
+                semantic_error(
+                    &ctx,
+                    function->span,
+                    "A program cannot contain more than 32 user functions."
+                );
+            }
+        }
     }
 
     /* Process functions in source order.

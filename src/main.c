@@ -10,6 +10,7 @@
 
 #include "cminor/ast/ast.h"
 #include "cminor/common/diagnostic.h"
+#include "cminor/common/source_limits.h"
 #include "cminor/lexer/lexer.h"
 #include "cminor/parser/parser.h"
 #include "cminor/semantic/semantic.h"
@@ -24,7 +25,8 @@ typedef enum {
     MODE_SYMBOLS,
     MODE_IR,
     MODE_LLVM,
-    MODE_CAPABILITIES
+    MODE_CAPABILITIES,
+    MODE_VERSION
 } CompilerMode;
 
 static void print_usage(const char *program)
@@ -39,24 +41,57 @@ static void print_usage(const char *program)
     printf("  --dump-ir            Display Student IR\n");
     printf("  --emit-backend-ir    Emit LLVM IR\n");
     printf("  --capabilities       Display compiler capabilities\n");
+    printf("  --backend=llvm       Select the LLVM backend\n");
+    printf("  --version            Display compiler version\n");
     printf("  -o <file>            Specify output file\n");
     printf("  --help               Display this help message\n");
+}
+
+static void print_version(void)
+{
+    printf("C Minor Compiler\n");
+    printf("C Minor Language Profile: 1.0\n");
+    printf("Selected Backend: LLVM\n");
 }
 
 static void print_capabilities(void)
 {
     printf("C Minor Compiler Capabilities\n");
-    printf("=============================\n");
-    printf("Language: C Minor\n");
-    printf("Implementation: C\n");
-    printf("Lexer: Flex\n");
-    printf("Parser: Bison\n");
-    printf("Intermediate Representation: Student IR\n");
-    printf("Backend: LLVM IR\n");
-    printf("Native code generator: LLVM llc\n");
-    printf("Target: x86-64 Linux\n\n");
+    printf("=============================\n\n");
 
-    printf("Supported features:\n");
+    printf("Language:\n");
+    printf("  Name: C Minor\n");
+    printf("  Language Profile: 1.0\n");
+    printf("  Implementation Language: C\n\n");
+
+    printf("Compiler Tools:\n");
+    printf("  Compiler: GCC %s\n", __VERSION__);
+    printf("  Lexer Generator: Flex 2.6.4\n");
+    printf("  Parser Generator: GNU Bison 3.8.2\n\n");
+
+    printf("Compilation Pipeline:\n");
+    printf("  Lexer: Flex-generated lexer\n");
+    printf("  Parser: Bison-generated parser\n");
+    printf("  Intermediate Representation: Student IR\n");
+    printf("  Backend Intermediate Representation: LLVM IR\n");
+    printf("  Native Code Generator: LLVM llc 23.1.3\n\n");
+
+    printf("Target Platform:\n");
+    printf("  Operating System: Linux\n");
+    printf("  Architecture: x86-64\n");
+    printf("  Target Triple: x86_64-pc-linux-gnu\n");
+    printf("  ABI: System V AMD64\n");
+    printf("  Object Format: ELF\n\n");
+
+    printf("Supported Backend:\n");
+    printf("  - LLVM 23.1.3\n\n");
+
+    printf("Accepted Source Input:\n");
+    printf("  - Accepted extensions: .cm and .c\n");
+    printf("  - Filename extension is validated\n");
+    printf("  - Preprocessing: Not implemented\n\n");
+
+    printf("Supported Language Features:\n");
     printf("  - int and void function return types\n");
     printf("  - Local integer variables and parameters\n");
     printf("  - Arithmetic and comparison operators\n");
@@ -67,7 +102,22 @@ static void print_capabilities(void)
     printf("  - Direct function calls and recursion\n");
     printf("  - Semantic analysis and symbol tables\n");
     printf("  - Student IR generation\n");
-    printf("  - LLVM IR and x86-64 assembly generation\n");
+    printf("  - LLVM IR and x86-64 assembly generation\n\n");
+
+    printf("Resource Limits:\n");
+    printf("  - Maximum source size: 32 KiB (32768 bytes)\n");
+    printf("  - Maximum tokens: 4000\n");
+    printf("  - Maximum source line length: 2048 characters\n");
+    printf("  - Maximum block nesting depth: 16\n");
+    printf("  - Maximum expression parenthesis depth: 16\n");
+    printf("  - Maximum user functions: 32\n");
+    printf("  - Maximum parameters per function: 6\n");
+    printf("  - Maximum local declarations per block: 64\n\n");
+
+    printf("Backend Selection:\n");
+    printf("  - Default backend: LLVM\n");
+    printf("  - Supported option: --backend=llvm\n");
+    printf("  - Unsupported option: --backend=qbe\n");
 }
 
 static int dump_tokens(const char *source_name)
@@ -149,6 +199,9 @@ static int run_llc(const char *llvm_file, const char *assembly_file)
     if (child == 0) {
         char *const arguments[] = {
             "llc",
+            "-O=0",
+            "-mtriple=x86_64-pc-linux-gnu",
+            "-filetype=asm",
             (char *)llvm_file,
             "-o",
             (char *)assembly_file,
@@ -246,6 +299,18 @@ static int normalize_assembly(const char *assembly_file)
     return success;
 }
 
+static int has_supported_extension(const char *filename)
+{
+    const char *extension = strrchr(filename, '.');
+
+    if (extension == NULL) {
+        return 0;
+    }
+
+    return strcmp(extension, ".cm") == 0 ||
+           strcmp(extension, ".c") == 0;
+}
+
 static char *default_output_name(const char *source_name)
 {
     const char *dot = strrchr(source_name, '.');
@@ -272,9 +337,38 @@ int main(int argc, char **argv)
     CompilerMode mode = MODE_COMPILE;
     const char *source_name = NULL;
     const char *output_name = NULL;
+    int mode_option_seen = 0;
 
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--help") == 0 ||
+        int is_mode_option =
+            strcmp(argv[i], "--version") == 0 ||
+            strcmp(argv[i], "--check") == 0 ||
+            strcmp(argv[i], "--dump-tokens") == 0 ||
+            strcmp(argv[i], "--dump-ast") == 0 ||
+            strcmp(argv[i], "--dump-symbols") == 0 ||
+            strcmp(argv[i], "--dump-ir") == 0 ||
+            strcmp(argv[i], "--emit-backend-ir") == 0 ||
+            strcmp(argv[i], "--capabilities") == 0;
+
+        if (is_mode_option) {
+            if (mode_option_seen) {
+                fprintf(stderr,
+                        "Error: Compilation mode options are mutually exclusive. "
+                        "Specify only one mode option.\n");
+                return 2;
+            }
+
+            mode_option_seen = 1;
+        }
+
+        if (strcmp(argv[i], "--version") == 0) {
+            mode = MODE_VERSION;
+        } else if (strcmp(argv[i], "--backend=llvm") == 0) {
+            /* LLVM is the only implemented backend. */
+        } else if (strcmp(argv[i], "--backend=qbe") == 0) {
+            fprintf(stderr, "Error: QBE backend is not implemented. Supported backend: llvm.\n");
+            return EXIT_FAILURE;
+        } else if (strcmp(argv[i], "--help") == 0 ||
             strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             return EXIT_SUCCESS;
@@ -295,19 +389,30 @@ int main(int argc, char **argv)
         } else if (strcmp(argv[i], "-o") == 0) {
             if (i + 1 >= argc) {
                 fprintf(stderr, "Error: -o requires an output filename.\n");
-                return EXIT_FAILURE;
+                return 2;
             }
             output_name = argv[++i];
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Error: Unknown option '%s'.\n", argv[i]);
             print_usage(argv[0]);
-            return EXIT_FAILURE;
+            return 2;
         } else if (source_name == NULL) {
             source_name = argv[i];
         } else {
             fprintf(stderr, "Error: Multiple source files are not supported.\n");
-            return EXIT_FAILURE;
+            return 2;
         }
+    }
+
+    if ((mode == MODE_VERSION || mode == MODE_CAPABILITIES) &&
+        (source_name != NULL || output_name != NULL)) {
+        fprintf(stderr, "Error: This option does not accept source or output files.\n");
+        return 2;
+    }
+
+    if (mode == MODE_VERSION) {
+        print_version();
+        return EXIT_SUCCESS;
     }
 
     if (mode == MODE_CAPABILITIES) {
@@ -317,26 +422,26 @@ int main(int argc, char **argv)
 
     if (source_name == NULL) {
         print_usage(argv[0]);
+        return 2;
+    }
+
+    if (output_name != NULL && mode != MODE_COMPILE && mode != MODE_LLVM) {
+        fprintf(stderr, "Error: -o is supported only in compile and backend-IR modes.\n");
+        return 2;
+    }
+
+    if (!has_supported_extension(source_name)) {
+        fprintf(stderr, "Error: Source filename must end in .cm or .c: %s\n",
+                source_name);
+        return EXIT_FAILURE;
+    }
+
+    if (!source_validate_limits(source_name)) {
         return EXIT_FAILURE;
     }
 
     if (mode == MODE_TOKENS) {
         return dump_tokens(source_name);
-    }
-
-    if (mode == MODE_AST && output_name != NULL) {
-        fprintf(stderr, "Error: -o is not used with --dump-ast.\n");
-        return EXIT_FAILURE;
-    }
-
-    if (mode == MODE_SYMBOLS && output_name != NULL) {
-        fprintf(stderr, "Error: -o is not used with --dump-symbols.\n");
-        return EXIT_FAILURE;
-    }
-
-    if (mode == MODE_IR && output_name != NULL) {
-        fprintf(stderr, "Error: -o is not used with --dump-ir.\n");
-        return EXIT_FAILURE;
     }
 
     FILE *input = fopen(source_name, "r");
@@ -351,7 +456,7 @@ int main(int argc, char **argv)
 
     AstNode *ast = NULL;
 
-    printf("[1/4] Parsing source...\n");
+    fprintf(stderr, "[1/4] Parsing source...\n");
 
     int parse_result = parser_parse(
         input,
@@ -369,7 +474,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    printf("[OK] Parsing successful.\n");
+    fprintf(stderr, "[OK] Parsing successful.\n");
 
     if (mode == MODE_AST) {
         printf("\n========== ABSTRACT SYNTAX TREE ==========\n");
@@ -378,7 +483,7 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
-    printf("[2/4] Performing semantic analysis...\n");
+    fprintf(stderr, "[2/4] Performing semantic analysis...\n");
 
     SemanticModel semantic_model = {0};
 
@@ -396,7 +501,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    printf("[OK] Semantic analysis successful.\n");
+    fprintf(stderr, "[OK] Semantic analysis successful.\n");
 
     if (mode == MODE_SYMBOLS) {
         printf("\n========== SYMBOL TABLE ==========\n");
@@ -407,7 +512,7 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
-    printf("[3/4] Generating Student IR...\n");
+    fprintf(stderr, "[3/4] Generating Student IR...\n");
 
     IRProgram ir = {0};
 
@@ -421,7 +526,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    printf("[OK] Student IR generation successful.\n");
+    fprintf(stderr, "[OK] Student IR generation successful.\n");
 
     if (mode == MODE_IR) {
         printf("\n========== STUDENT IR ==========\n");
@@ -433,7 +538,7 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
-    printf("[4/4] Generating LLVM IR...\n");
+    fprintf(stderr, "[4/4] Generating LLVM IR...\n");
 
     FILE *llvm_output = NULL;
     char temporary_name[] = "/tmp/cminor-llvm-XXXXXX";
@@ -495,11 +600,11 @@ int main(int argc, char **argv)
         goto cleanup_failure;
     }
 
-    printf("[OK] LLVM IR generation successful.\n");
+    fprintf(stderr, "[OK] LLVM IR generation successful.\n");
 
     if (mode == MODE_LLVM) {
         if (output_name != NULL) {
-            printf("Output: %s\n", output_name);
+            fprintf(stderr, "Output: %s\n", output_name);
         }
 
         ir_program_destroy(&ir);
@@ -509,7 +614,7 @@ int main(int argc, char **argv)
     }
 
     if (mode == MODE_CHECK) {
-        printf("\nCompilation check successful.\n");
+        fprintf(stderr, "\nCompilation check successful.\n");
 
         unlink(temporary_name);
         ir_program_destroy(&ir);
@@ -532,25 +637,73 @@ int main(int argc, char **argv)
         goto cleanup_failure;
     }
 
-    printf("Generating x86-64 assembly...\n");
+    fprintf(stderr, "Generating x86-64 assembly...\n");
 
-    if (!run_llc(temporary_name, assembly_name)) {
+    size_t assembly_temp_length =
+        strlen(assembly_name) + sizeof(".tmpXXXXXX");
+
+    char *assembly_temp = malloc(assembly_temp_length);
+
+    if (assembly_temp == NULL) {
+        fprintf(stderr, "Error: Could not allocate temporary output name.\n");
+        unlink(temporary_name);
+        free(generated_name);
+        goto cleanup_failure;
+    }
+
+    snprintf(assembly_temp, assembly_temp_length,
+             "%s.tmpXXXXXX", assembly_name);
+
+    int assembly_fd = mkstemp(assembly_temp);
+
+    if (assembly_fd < 0) {
+        perror("mkstemp");
+        free(assembly_temp);
+        unlink(temporary_name);
+        free(generated_name);
+        goto cleanup_failure;
+    }
+
+    if (close(assembly_fd) != 0) {
+        perror("close");
+        unlink(assembly_temp);
+        free(assembly_temp);
+        unlink(temporary_name);
+        free(generated_name);
+        goto cleanup_failure;
+    }
+
+    if (!run_llc(temporary_name, assembly_temp)) {
         fprintf(stderr, "Error: LLVM llc failed.\n");
+        unlink(assembly_temp);
+        free(assembly_temp);
         unlink(temporary_name);
         free(generated_name);
         goto cleanup_failure;
     }
 
-    if (!normalize_assembly(assembly_name)) {
+    if (!normalize_assembly(assembly_temp)) {
+        unlink(assembly_temp);
+        free(assembly_temp);
         unlink(temporary_name);
         free(generated_name);
         goto cleanup_failure;
     }
 
+    if (rename(assembly_temp, assembly_name) != 0) {
+        perror("rename");
+        unlink(assembly_temp);
+        free(assembly_temp);
+        unlink(temporary_name);
+        free(generated_name);
+        goto cleanup_failure;
+    }
+
+    free(assembly_temp);
     unlink(temporary_name);
 
-    printf("[OK] Assembly generation successful.\n");
-    printf("Output: %s\n", assembly_name);
+    fprintf(stderr, "[OK] Assembly generation successful.\n");
+    fprintf(stderr, "Output: %s\n", assembly_name);
 
     free(generated_name);
     ir_program_destroy(&ir);
